@@ -1,0 +1,3 @@
+[submodule "cpp-basic-crawler/Libs/curl"]
+	path = cpp-basic-crawler/Libs/curl
+	url = https://github.com/curl/curl.git
