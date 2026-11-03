@@ -28,6 +28,5 @@ slave::slave(slave_work_ptr work,
 slave::~slave()
 {
     worker.join();
-    curl_easy_cleanup(handle);
-    
+    curl_easy_cleanup(handle);   
 }

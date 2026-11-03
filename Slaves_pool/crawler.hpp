@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <unordered_set>
+
 #include "slave.hpp"
 
 class crawler
@@ -19,6 +21,8 @@ private:
     std::vector<std::string> extracted_links;
     std::mutex extracted_links_mutx;
  
+    std::unordered_set<std::string> urls_exist ;
+
     std::condition_variable cv;
     std::vector<slave*> slave_pool;
 

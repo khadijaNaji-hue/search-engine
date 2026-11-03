@@ -11,6 +11,10 @@
 
 #include "slave.hpp"
 
+#include <atomic>
+
+inline std::atomic<unsigned int > crawl_count = 0 ; 
+
 void slave_work(CURL*&handle , std::queue<std::string> &tasks ,std::mutex &tasks_mutx,
                                  std::vector<url_html> &results ,std::mutex &result_mutx,
                                  std::vector<std::string>& extracted_links ,std::mutex &extracted_links_mutx,

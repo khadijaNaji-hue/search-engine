@@ -8,6 +8,8 @@
 #include <libxml/xpath.h>
 #include <libxml/uri.h>
 
+#include <sstream>
+
 void slave_work(CURL *&handle, std::queue<std::string> &tasks, std::mutex &tasks_mutx,
                 std::vector<url_html> &results, std::mutex &result_mutx,
                 std::vector<std::string> &extracted_links, std::mutex &extracted_links_mutx,
@@ -18,21 +20,33 @@ void slave_work(CURL *&handle, std::queue<std::string> &tasks, std::mutex &tasks
     url_html html_url;
     std::string html, cur_base_url;
 
-    setup_curlhadle(handle , html);
+    setup_curlhadle(handle, html);
 
     while (1)
     {
         std::unique_lock<std::mutex> taskQ_lk(tasks_mutx);
-        cv.wait(taskQ_lk, [&]() { return !(tasks.empty()); }); // sleep until tasks avalaIble
+        cv.wait(taskQ_lk, [&]()
+                { return !(tasks.empty()); }); // sleep until tasks avalaIble
         cur_base_url = tasks.front();
         tasks.pop();
+        if (tasks.empty())
+            cv.notify_all();
         taskQ_lk.unlock();
 
-        if (!get_request( handle, cur_base_url, html))
+        if (!get_request(handle, cur_base_url, html))
             continue;
 
+        //auto x = std::this_thread::get_id();
+        // std::string sx = std::format("{}", x);
+        //std::ostringstream oss;
+        //oss << x;
+        //std::string sx = oss.str();
+
+        crawl_count++;
+        //std::cout << " current count : " << crawl_count << "id : " << sx <<  "\n";
+
         std::set<std::string> links = extract_links(html, cur_base_url);
-        
+
         std::unique_lock<std::mutex> links_lk(extracted_links_mutx);
         for (const std::string &link : links)
         {
@@ -46,12 +60,28 @@ void slave_work(CURL *&handle, std::queue<std::string> &tasks, std::mutex &tasks
         std::unique_lock<std::mutex> result_lk(result_mutx);
         results.push_back(html_url);
         result_lk.unlock();
-
-        if(tasks.empty())
-           cv.notify_all();
-
     }
 }
+
+/*bool get_request(CURL *handle, std::string base_url, std::string &html)
+{
+    html = "";
+    char errbuf[CURL_ERROR_SIZE] = {0};
+    curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errbuf);
+    curl_easy_setopt(handle, CURLOPT_URL, base_url.c_str());
+
+    CURLcode result = curl_easy_perform(handle);
+    if (result != CURLE_OK)
+    {
+        std::cout << "FAIL [" << base_url << "] code=" << (int)result
+                  << " " << curl_easy_strerror(result)
+                  << " | " << errbuf << '\n';
+        html = "";
+        return 0;
+    }
+    std::cout << "OK   [" << base_url << "] " << html.size() << " bytes\n";
+    return 1;
+}*/
 
 bool get_request(CURL *handle, std::string base_url, std::string &html)
 {
@@ -61,15 +91,14 @@ bool get_request(CURL *handle, std::string base_url, std::string &html)
     CURLcode result = curl_easy_perform(handle);
     if (result != CURLE_OK)
     {
-        std::cout << "Download failed: "
-                  << curl_easy_strerror(result) << '\n';
+        //std::cout << "Download failed: " << curl_easy_strerror(result) << '\n';
         html = "";
         return 0;
     }
     return 1;
 }
 
-void setup_curlhadle(CURL * &handle, std::string &buffer)
+void setup_curlhadle(CURL *&handle, std::string &buffer)
 {
     handle = curl_easy_init();
     if (!handle)
@@ -85,11 +114,13 @@ void setup_curlhadle(CURL * &handle, std::string &buffer)
     };
 
     curl_easy_setopt(handle, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+    // curl_easy_setopt(handle, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA | CURLSSLOPT_NO_REVOKE);
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, +write_data_instr);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &buffer);
-    curl_easy_setopt(handle, CURLOPT_TIMEOUT, 300L); // setup 5 mins error
-	curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1L); // fail on 400 requests
+    curl_easy_setopt(handle, CURLOPT_TIMEOUT, 10L);   // setup 5 mins error
+    curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1L); // fail on 400 requests
 }
+
 std::set<std::string> extract_links(const std::string &html, const std::string &base_url)
 {
     std::set<std::string> links;
