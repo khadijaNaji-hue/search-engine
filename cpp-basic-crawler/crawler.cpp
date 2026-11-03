@@ -25,9 +25,11 @@ size_t write_data_instr(char *buffer, size_t size, size_t nmemb, void *userptr)
 std::set<std::string> extract_links(const std::string &html, const std::string &base_url);
 std::set<std::string> extract_tokens(const std::string &html);
 
+std::set<std::string> urls_exist ={};
 void crawl(indexer& indexer)
 {
     CURLcode result;
+    std::set<std::string> existing_urls = {};
     // set curl
     std::string html , url  ; //buffer to the 
     curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -72,6 +74,11 @@ void crawl(indexer& indexer)
         std::set<std::string> links = extract_links(html, url);
         for (const std::string &link : links)
         {
+            if (urls_exist.find(link) != urls_exist.end())
+                continue; // Skip if the link already exists
+            
+            
+            urls_exist.insert(link);
             urlsOutput << link << '\n';
         }
         std::set<std::string> tokens = extract_tokens(html);
@@ -88,5 +95,4 @@ void crawl(indexer& indexer)
     
     curl_easy_cleanup(handle);
     curl_global_cleanup();
-
 }
