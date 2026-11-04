@@ -5,6 +5,4 @@ build/
 cpp-basic-crawler/Libs/libxml2/
 cpp-basic-crawler/files/page*.txt
 
-Slaves_pool/Libs/curl/
-Slaves_pool/Libs/libxml2/
 Slaves_pool/files/page*.txt
