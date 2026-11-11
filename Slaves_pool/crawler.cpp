@@ -1,4 +1,3 @@
-
 #include "crawler.hpp"
 #include "slave.hpp"
 #include "utlis.hpp"
@@ -38,13 +37,14 @@ void crawler::crawl()
 
         batchs++;
         if (crawl_count >= next_print)
-    {
+        {
         double mins = std::chrono::duration<double>(
                           std::chrono::steady_clock::now() - start).count() / 60.0;
         std::cout << crawl_count / mins << " pages/min ("
                   << crawl_count << " pages)(" << batchs << ")\n";
+        
         next_print += 1000;
-    }
+        }
     }
 
     // fill tasks queue form urls_db

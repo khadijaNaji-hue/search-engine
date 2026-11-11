@@ -26,3 +26,5 @@ bool get_request(CURL* handle , std::string base_url , std::string &html );
 std::set<std::string> extract_links( const std::string& html, const std::string& base_url);
 
 void setup_curlhadle(CURL * &handle, std::string &buffer);
+
+static bool normalize_link(const CURLU *base, std::string href, std::string &out);
