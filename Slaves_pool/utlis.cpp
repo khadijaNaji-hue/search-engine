@@ -207,6 +207,51 @@ std::set<std::string> extract_links(const std::string &html, const std::string &
     return links;
 }
 
+static bool has_blocked_extension(const std::string &path)
+{
+	size_t slash = path.find_last_of('/');
+	std::string last = path.substr(slash == std::string::npos ? 0 : slash + 1);
+	size_t dot = last.find_last_of('.');
+	if (dot == std::string::npos)
+		return false;
+
+	std::string ext = last.substr(dot + 1);
+	std::transform(ext.begin(), ext.end(), ext.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+
+	static const std::set<std::string> blocked = {
+		"jpg","jpeg","png","gif","svg","webp","ico","bmp","avif",
+		"pdf","doc","docx","xls","xlsx","ppt","pptx",
+		"zip","gz","tar","rar","7z","iso","exe","dmg","apk",
+		"mp3","mp4","avi","mov","webm","mkv","wav",
+		"css","js","json","woff","woff2","ttf","eot"};
+	return blocked.count(ext) > 0;
+}
+
+static bool is_login_path(const std::string &path)
+{
+	static const std::set<std::string> words = {
+		"login", "log-in", "signin", "sign-in", "signup", "sign-up",
+		"register", "logout", "log-out", "signout", "sign-out",
+		"oauth", "auth", "sso", "account-login", "forgot-password"};
+
+	size_t start = 0;
+	while (start <= path.size())
+	{
+		size_t end = path.find('/', start);
+		if (end == std::string::npos)
+			end = path.size();
+		std::string seg = path.substr(start, end - start);
+		start = end + 1;
+
+		std::transform(seg.begin(), seg.end(), seg.begin(),
+				[](unsigned char c) { return std::tolower(c); });
+		if (words.count(seg))
+			return true;
+	}
+	return false;
+}
+
 // Core: base is already parsed (parse once per page, reuse for every href).
 static bool normalize_link(const CURLU *base, std::string href, std::string &out)
 {
@@ -254,7 +299,7 @@ static bool normalize_link(const CURLU *base, std::string href, std::string &out
 		while (p.size() > 1 && p.back() == '/')
 			p.pop_back();
 		
-        if (has_blocked_extension(p))
+        if (has_blocked_extension(p) || is_login_path(p))
 			break;
 
         curl_url_set(u, CURLUPART_PATH, p.c_str(), 0);
@@ -266,9 +311,6 @@ static bool normalize_link(const CURLU *base, std::string href, std::string &out
 
         // 4) drop the #fragment
         curl_url_set(u, CURLUPART_FRAGMENT, nullptr, 0);
-
-		
-		
 
         // 5) lowercase the host (ASCII only)
         if (curl_url_get(u, CURLUPART_HOST, &host, 0) != CURLUE_OK)
@@ -300,23 +342,3 @@ static bool normalize_link(const CURLU *base, std::string href, std::string &out
     return ok;
 }
 
-static bool has_blocked_extension(const std::string &path)
-{
-	size_t slash = path.find_last_of('/');
-	std::string last = path.substr(slash == std::string::npos ? 0 : slash + 1);
-	size_t dot = last.find_last_of('.');
-	if (dot == std::string::npos)
-		return false;
-
-	std::string ext = last.substr(dot + 1);
-	std::transform(ext.begin(), ext.end(), ext.begin(),
-			[](unsigned char c) { return std::tolower(c); });
-
-	static const std::set<std::string> blocked = {
-		"jpg","jpeg","png","gif","svg","webp","ico","bmp","avif",
-		"pdf","doc","docx","xls","xlsx","ppt","pptx",
-		"zip","gz","tar","rar","7z","iso","exe","dmg","apk",
-		"mp3","mp4","avi","mov","webm","mkv","wav",
-		"css","js","json","woff","woff2","ttf","eot"};
-	return blocked.count(ext) > 0;
-}
